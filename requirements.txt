@@ -1,2 +1,4 @@
 py-cord
 plexapi
+python-dotenv
+motor
