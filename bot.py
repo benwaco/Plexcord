@@ -88,16 +88,24 @@ async def remove(ctx, discord_id: str):
 @bot.slash_command(guild_ids=[GUILD_ID])
 async def status(ctx):
     try:
-        user_data = await db_plex["plex"].find_one({"discord_id": ctx.author.id})
-        if user_data is None:
+        user_data_list = await db_plex["plex"].find({"discord_id": ctx.author.id}).to_list(length=None)
+        if not user_data_list:
             await ctx.respond(f"You are not in the database.", ephemeral=True)
             return
-        email = user_data["email"]
-        share_status = user_data["share_status"]
-        archived = user_data["archived"]
-        if archived:
+        
+        unarchived_data = None
+        for user_data in user_data_list:
+            if not user_data["archived"]:
+                unarchived_data = user_data
+                break
+
+        if unarchived_data is None:
+            email = user_data_list[0]["email"]
+            share_status = user_data_list[0]["share_status"]
             await ctx.respond(f"Your email is {email}, and your share status is {share_status}. You are archived. This means that you have been removed from the server manually or we have removed you due to non-payment. If you wish to be re-added, please contact us.", ephemeral=True)
         else:
+            email = unarchived_data["email"]
+            share_status = unarchived_data["share_status"]
             await ctx.respond(f"Your email is {email}, and your share status is {share_status}.", ephemeral=True)
     except Exception as e:
         print(e)
@@ -121,5 +129,9 @@ async def lookup(ctx, discord_id: str):
     except Exception as e:
         print(e)
         await ctx.respond(f"Error retrieving {discord_id}'s share status, {e}", ephemeral=True)
+@bot.slash_command(guild_ids=[GUILD_ID])
+async def count(ctx):
+    await ctx.respond(f"{len(account.users())}/100 users", ephemeral=True)
+
 
 bot.run(DISCORD_TOKEN)
