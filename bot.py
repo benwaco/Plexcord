@@ -15,6 +15,7 @@ MONGODB_URL = os.getenv("MONGODB_URL")
 PLEX_USERNAME = os.getenv("PLEX_USERNAME")
 PLEX_PASSWORD = os.getenv("PLEX_PASSWORD")
 PLEX_SERVER_NAME = os.getenv("PLEX_SERVER_NAME")
+DISCORD_ADMIN_ROLE_ID = os.getenv("DISCORD_ADMIN_ROLE_ID")
 
 # Setup Plex Server
 try:
@@ -102,5 +103,23 @@ async def status(ctx):
         print(e)
         await ctx.respond(f"Error retrieving your share status, {e}", ephemeral=True)
 
+@bot.slash_command(guild_ids=[GUILD_ID])
+async def lookup(ctx, discord_id: str):
+    discord_id = int(discord_id)
+    try:
+        user_data = await db_plex["plex"].find_one({"discord_id": discord_id})
+        if user_data is None:
+            await ctx.respond(f"{discord_id} is not in the database.", ephemeral=True)
+            return
+        email = user_data["email"]
+        share_status = user_data["share_status"]
+        archived = user_data["archived"]
+        if archived:
+            await ctx.respond(f"{discord_id}'s email is {email}, and their share status is {share_status}. They are archived. This means that they have been removed from the server manually or we have removed them due to non-payment. If they wish to be re-added, they should contact us.", ephemeral=True)
+        else:
+            await ctx.respond(f"{discord_id}'s email is {email}, and their share status is {share_status}.", ephemeral=True)
+    except Exception as e:
+        print(e)
+        await ctx.respond(f"Error retrieving {discord_id}'s share status, {e}", ephemeral=True)
 
 bot.run(DISCORD_TOKEN)
