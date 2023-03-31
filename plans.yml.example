@@ -1,0 +1,24 @@
+plans:
+  - name: Basic
+    stripe_price_id: ADD HERE
+    price: 3
+    concurrent_streams: 2
+    downloads_enabled: false
+    4k_enabled: false
+    type: one-time
+
+  - name: Standard
+    stripe_price_id: ADD HERE
+    price: 5
+    concurrent_streams: 3
+    downloads_enabled: true
+    4k_enabled: true
+    type: one-time
+
+  - name: Extra
+    stripe_price_id: ADD HERE
+    price: 10
+    concurrent_streams: 5
+    downloads_enabled: true
+    4k_enabled: true
+    type: one-time

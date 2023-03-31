@@ -2,3 +2,5 @@ py-cord
 plexapi
 python-dotenv
 motor
+stripe
+pyyaml

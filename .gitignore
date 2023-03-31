@@ -1,5 +1,6 @@
 # .gitignore
-
+plans.yml
+test.py
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.pyc
