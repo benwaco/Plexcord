@@ -98,7 +98,7 @@ async def ping(ctx):
     await ctx.respond(f"Pong! {int(bot.latency * 1000)}ms", ephemeral=True)
 
 
-async def donate(email: str, stripe_price_id: str, discord_author_id: str):
+async def donate(email: str, stripe_price_id: str, discord_author_id: str, type):
     try:
         # Check if the user already has a pending invoice
         existing_payment = await db_payments["payments"].find_one(
@@ -111,39 +111,63 @@ async def donate(email: str, stripe_price_id: str, discord_author_id: str):
 
         # Create Stripe customer
         customer = stripe.Customer.create(email=email)
+        if type == "onetime":
+            # Create Stripe invoice
+            invoice_item = stripe.InvoiceItem.create(
+                customer=customer.id,
+                price=stripe_price_id,  # Replace with your Stripe price ID
+            )
 
-        # Create Stripe invoice
-        invoice_item = stripe.InvoiceItem.create(
-            customer=customer.id,
-            price=stripe_price_id,  # Replace with your Stripe price ID
-        )
+            invoice = stripe.Invoice.create(
+                customer=customer.id,
+                auto_advance=True,
+                pending_invoice_items_behavior="include",
+            )
 
-        invoice = stripe.Invoice.create(
-            customer=customer.id,
-            auto_advance=True,
-            pending_invoice_items_behavior="include",
-        )
+            # Finalize the invoice
+            finalised_invoice = stripe.Invoice.finalize_invoice(invoice.id)
 
-        # Finalize the invoice
-        finalised_invoice = stripe.Invoice.finalize_invoice(invoice.id)
+            # Log unpaid invoice to the "payments" MongoDB collection
+            await db_payments["payments"].insert_one(
+                {
+                    "discord_id": discord_author_id,
+                    "email": email,
+                    "invoice_id": finalised_invoice.id,
+                    "paid": False,
+                    "invoice_url": finalised_invoice.hosted_invoice_url,
+                    "type": "onetime",
+                }
+            )
 
-        # Log unpaid invoice to the "payments" MongoDB collection
-        await db_payments["payments"].insert_one(
-            {
-                "discord_id": discord_author_id,
-                "email": email,
-                "invoice_id": finalised_invoice.id,
-                "paid": False,
-                "invoice_url": finalised_invoice.hosted_invoice_url,
-            }
-        )
-
-        # Send the invoice URL to the user
-        # Direct message the user the link as well
-        return finalised_invoice.hosted_invoice_url
+            # Send the invoice URL to the user
+            # Direct message the user the link as well
+            return finalised_invoice.hosted_invoice_url
+        elif type == "recurring":
+            session = stripe.checkout.Session.create(
+                customer=customer.id,
+                line_items=[
+                    {
+                        "price": stripe_price_id,
+                        "quantity": 1,
+                    },
+                ],
+                mode="subscription",
+                success_url="https://pastebin.com/raw/hNTkhSb8",
+            )
+            await db_payments["payments"].insert_one(
+                {
+                    "discord_id": discord_author_id,
+                    "email": email,
+                    "session_id": session.id,
+                    "paid": False,
+                    "invoice_url": session.url,
+                    "type": "recurring",
+                }
+            )
+            return session.url
     except Exception as e:
         print(e)
-        return f"Error creating your invoice, {e}"
+        return f"Error creating your subscriptiuon, {e}"
 
 
 @bot.slash_command(guild_ids=[GUILD_ID])
@@ -205,14 +229,17 @@ class BasicModal(discord.ui.Modal):
 
 
 class TestFormModal(discord.ui.Modal):
-    def __init__(self, plan, *args, **kwargs) -> None:
+    def __init__(self, plan, type, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.add_item(discord.ui.InputText(label="Email Address"))
         self.plan = plan
+        self.type = type
 
     async def callback(self, interaction: discord.Interaction):
         email = self.children[0].value
-        donate_return = await donate(email, self.plan, interaction.user.id)
+        donate_return = await donate(
+            email, self.plan, interaction.user.id, type=self.type
+        )
         await interaction.response.send_message(
             f"Please pay the invoice at the following URL: {donate_return}, the link has also been messaged to you.",
             ephemeral=True,
@@ -262,22 +289,66 @@ class PlanView(
         label="Basic", row=0, style=discord.ButtonStyle.primary, custom_id="basic"
     )
     async def first_button_callback(self, button, interaction):
-        await interaction.response.send_message(view=PaymentOptionsView(plan=plans[0]))
+        embed = discord.Embed(
+            title="Chosen Plan",
+            color=discord.Color.blue(),
+        )
+        embed.add_field(
+            name=plans[0]["name"],
+            value=(
+                f"Price: ${plans[0]['price']}\n"
+                f"Concurrent Streams: {plans[0]['concurrent_streams']}\n"
+                f"Downloads Enabled: {'Yes' if plans[0]['downloads_enabled'] else 'No'}\n"
+                f"4K Enabled: {'Yes' if plans[0]['4k_enabled'] else 'No'}\n"
+            ),
+            inline=False,
+        )       
+        await interaction.response.send_message(
+            view=PaymentOptionsView(plan=plans[0]), ephemeral=True, embed=embed
+        )
 
     @discord.ui.button(
         label="Standard", row=0, style=discord.ButtonStyle.primary, custom_id="standard"
     )
     async def second_button_callback(self, button, interaction):
+        embed = discord.Embed(
+            title="Chosen Plan",
+            color=discord.Color.blue(),
+        )
+        embed.add_field(
+            name=plans[1]["name"],
+            value=(
+                f"Price: ${plans[1]['price']}\n"
+                f"Concurrent Streams: {plans[1]['concurrent_streams']}\n"
+                f"Downloads Enabled: {'Yes' if plans[1]['downloads_enabled'] else 'No'}\n"
+                f"4K Enabled: {'Yes' if plans[1]['4k_enabled'] else 'No'}\n"
+            ),
+            inline=False,
+        )               
         await interaction.response.send_message(
-            view=PaymentOptionsView(plan=plans[1]), ephemeral=True
+            embed=embed, view=PaymentOptionsView(plan=plans[1]), ephemeral=True
         )
 
     @discord.ui.button(
         label="Extra", row=0, style=discord.ButtonStyle.primary, custom_id="extra"
     )
     async def third_button_callback(self, button, interaction):
+        embed = discord.Embed(
+            title="Chosen Plan",
+            color=discord.Color.blue(),
+        )
+        embed.add_field(
+            name=plans[2]["name"],
+            value=(
+                f"Price: ${plans[2]['price']}\n"
+                f"Concurrent Streams: {plans[2]['concurrent_streams']}\n"
+                f"Downloads Enabled: {'Yes' if plans[2]['downloads_enabled'] else 'No'}\n"
+                f"4K Enabled: {'Yes' if plans[2]['4k_enabled'] else 'No'}\n"
+            ),
+            inline=False,
+        )
         await interaction.response.send_message(
-            view=PaymentOptionsView(plan=plans[2]), ephemeral=True
+            embed=embed, view=PaymentOptionsView(plan=plans[2]), ephemeral=True
         )
 
 
@@ -293,7 +364,9 @@ class PaymentOptionsView(discord.ui.View):
     async def first_button_callback(self, button, interaction):
         await interaction.response.send_modal(
             TestFormModal(
-                title="One Time Payment", plan=self.plan["onetime_stripe_price_id"]
+                title="One Time Payment",
+                plan=self.plan["onetime_stripe_price_id"],
+                type="onetime",
             )
         )
 
@@ -308,6 +381,7 @@ class PaymentOptionsView(discord.ui.View):
             TestFormModal(
                 title="Recurring Payment",
                 plan=self.plan["subscription_stripe_price_id"],
+                type="recurring",
             )
         )
 
@@ -352,38 +426,55 @@ async def send_plan_menu(ctx):
 
 
 @bot.slash_command(guild_ids=[GUILD_ID])
-async def cancel_invoice(ctx):
+async def cancel_payment(ctx):
     try:
-        # Check if the user has a pending invoice
+        # Check if the user has a pending payment
         existing_payment = await db_payments["payments"].find_one(
             {"discord_id": ctx.author.id, "paid": False}
         )
         if not existing_payment:
             await ctx.respond("No pending invoice found.", ephemeral=True)
             return
+        
+        if existing_payment["type"] == "onetime":
+            invoice_id = existing_payment["invoice_id"]
 
-        invoice_id = existing_payment["invoice_id"]
+            # Retrieve the invoice from Stripe
+            invoice = stripe.Invoice.retrieve(invoice_id)
 
-        # Retrieve the invoice from Stripe
-        invoice = stripe.Invoice.retrieve(invoice_id)
+            # Check if the invoice is already paid
+            if invoice.status == "paid":
+                await ctx.respond(
+                    "The invoice has already been paid. If you want a refund, please contact an administrator. Please run /payment_complete to complete the process.",
+                    ephemeral=True,
+                )
+                return
 
-        # Check if the invoice is already paid
-        if invoice.status == "paid":
-            await ctx.respond(
-                "The invoice has already been paid. If you want a refund, please contact an administrator.",
-                ephemeral=True,
+            # Cancel the invoice
+            stripe.Invoice.delete(invoice_id)
+
+            # Remove the invoice from the "payments" MongoDB collection
+            await db_payments["payments"].delete_one(
+                {"discord_id": ctx.author.id, "invoice_id": invoice_id}
             )
-            return
 
-        # Cancel the invoice
-        stripe.Invoice.delete(invoice_id)
+            await ctx.respond("The invoice has been cancelled.", ephemeral=True)
 
-        # Remove the invoice from the "payments" MongoDB collection
-        await db_payments["payments"].delete_one(
-            {"discord_id": ctx.author.id, "invoice_id": invoice_id}
-        )
-
-        await ctx.respond("The invoice has been cancelled.", ephemeral=True)
+        else:
+            session_id = existing_payment["session_id"]
+            #check if already paid 
+            session = stripe.checkout.Session.retrieve(session_id)
+            if session.payment_status == "paid":
+                await ctx.respond(
+                    "The subscription has already been paid. If you want a refund, please contact an administrator. Please run /payment_complete to complete the process.",
+                    ephemeral=True,
+                )
+                return
+            stripe.checkout.Session.expire(session_id)
+            await db_payments["payments"].delete_one(
+                {"discord_id": ctx.author.id, "invoice_id": invoice_id}
+            )
+            await ctx.respond("The subscription has been cancelled.", ephemeral=True)
     except Exception as e:
         print(e)
         await ctx.respond(f"Error cancelling your invoice, {e}", ephemeral=True)
@@ -398,31 +489,59 @@ async def payment_complete(ctx):
         if not payment_data:
             await ctx.respond("No pending payment found.", ephemeral=True)
             return
-
-        invoice_id = payment_data["invoice_id"]
+        
+        try:
+            invoice_id = payment_data["invoice_id"]
+        except:
+            pass
+        try:
+            session_id = payment_data["session_id"]
+        except:
+            pass
 
         # Verify payment status with Stripe
-        invoice = stripe.Invoice.retrieve(invoice_id)
+        if type == "onetime":
+            invoice = stripe.Invoice.retrieve(invoice_id)
+            if invoice.status == "paid":
+                # Update payment status in the database
+                await db_payments["payments"].update_one(
+                    {"discord_id": ctx.author.id, "invoice_id": invoice_id},
+                    {"$set": {"paid": True}},
+                )
 
-        if invoice.status == "paid":
-            # Update payment status in the database
-            await db_payments["payments"].update_one(
-                {"discord_id": ctx.author.id, "invoice_id": invoice_id},
-                {"$set": {"paid": True}},
-            )
+                # Add user to Plex
+                user_email = payment_data["email"]
+                await add_to_plex(user_email, ctx.author.id)
 
-            # Add user to Plex
-            user_email = payment_data["email"]
-            await add_to_plex(user_email, ctx.author.id)
-
-            await ctx.respond(
-                "Payment verified! You have been added to Plex.", ephemeral=True
-            )
+                await ctx.respond(
+                    "Payment verified! You have been added to Plex.", ephemeral=True
+                )
+            else:
+                await ctx.respond(
+                    "Your payment hasn't been verified yet. Please wait for a while and try again.",
+                    ephemeral=True,
+                )
         else:
-            await ctx.respond(
-                "Your payment hasn't been verified yet. Please wait for a while and try again.",
-                ephemeral=True,
-            )
+            checkout = stripe.checkout.Session.retrieve(session_id)
+            if checkout.payment_status == "paid":
+                # Update payment status in the database
+                await db_payments["payments"].update_one(
+                    {"discord_id": ctx.author.id, "session_id": session_id},
+                    {"$set": {"paid": True}},
+                )
+
+                # Add user to Plex
+                user_email = payment_data["email"]
+                await add_to_plex(user_email, ctx.author.id)
+
+                await ctx.respond(
+                    "Payment verified! You have been added to Plex.", ephemeral=True
+                )
+            else:
+                await ctx.respond(
+                    "Your payment hasn't been verified yet. Please wait for a while and try again.",
+                    ephemeral=True,
+                )
 
     except Exception as e:
         print(e)
