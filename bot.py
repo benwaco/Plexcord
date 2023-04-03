@@ -98,7 +98,6 @@ async def ping(ctx):
     await ctx.respond(f"Pong! {int(bot.latency * 1000)}ms", ephemeral=True)
 
 
-
 async def donate(email: str, stripe_price_id: str, discord_author_id: str):
     try:
         # Check if the user already has a pending invoice
@@ -189,12 +188,21 @@ class BasicModal(discord.ui.Modal):
         super().__init__(*args, **kwargs)
 
         self.add_item(discord.ui.InputText(label="Email Address"))
+
     async def callback(self, interaction: discord.Interaction):
         email = self.children[0].value
-        print(email, interaction.user.id, plans[0]['stripe_price_id'])
-        donate_return = await donate(email, plans[0]['stripe_price_id'], interaction.user.id)
-        await interaction.response.send_message(f"Please pay the invoice at the following URL: {donate_return}, the link has also been messaged to you.", ephemeral=True)
-        await interaction.user.send(f"Please pay the invoice at the following URL: {donate_return}.")
+        print(email, interaction.user.id, plans[0]["stripe_price_id"])
+        donate_return = await donate(
+            email, plans[0]["stripe_price_id"], interaction.user.id
+        )
+        await interaction.response.send_message(
+            f"Please pay the invoice at the following URL: {donate_return}, the link has also been messaged to you.",
+            ephemeral=True,
+        )
+        await interaction.user.send(
+            f"Please pay the invoice at the following URL: {donate_return}."
+        )
+
 
 class TestFormModal(discord.ui.Modal):
     def __init__(self, plan, *args, **kwargs) -> None:
@@ -205,8 +213,14 @@ class TestFormModal(discord.ui.Modal):
     async def callback(self, interaction: discord.Interaction):
         email = self.children[0].value
         donate_return = await donate(email, self.plan, interaction.user.id)
-        await interaction.response.send_message(f"Please pay the invoice at the following URL: {donate_return}, the link has also been messaged to you.", ephemeral=True)
-        await interaction.user.send(f"Please pay the invoice at the following URL: {donate_return}.")
+        await interaction.response.send_message(
+            f"Please pay the invoice at the following URL: {donate_return}, the link has also been messaged to you.",
+            ephemeral=True,
+        )
+        await interaction.user.send(
+            f"Please pay the invoice at the following URL: {donate_return}."
+        )
+
 
 class StandardModal(discord.ui.Modal):
     def __init__(self, *args, **kwargs) -> None:
@@ -216,9 +230,12 @@ class StandardModal(discord.ui.Modal):
 
     async def callback(self, interaction: discord.Interaction):
         email = self.children[0].value
-        print(email, interaction.user.id, plans[1]['stripe_price_id'])
-        donate_return = await donate(email, plans[1]['stripe_price_id'], interaction.user.id)
+        print(email, interaction.user.id, plans[1]["stripe_price_id"])
+        donate_return = await donate(
+            email, plans[1]["stripe_price_id"], interaction.user.id
+        )
         await interaction.response.send_message(donate_return, ephemeral=True)
+
 
 class ExtraModal(discord.ui.Modal):
     def __init__(self, *args, **kwargs) -> None:
@@ -228,9 +245,12 @@ class ExtraModal(discord.ui.Modal):
 
     async def callback(self, interaction: discord.Interaction):
         email = self.children[0].value
-        print(email, interaction.user.id, plans[2]['stripe_price_id'])
-        donate_return = await donate(email, plans[2]['stripe_price_id'], interaction.user.id)
+        print(email, interaction.user.id, plans[2]["stripe_price_id"])
+        donate_return = await donate(
+            email, plans[2]["stripe_price_id"], interaction.user.id
+        )
         await interaction.response.send_message(donate_return, ephemeral=True)
+
 
 class PlanView(
     discord.ui.View
@@ -248,33 +268,48 @@ class PlanView(
         label="Standard", row=0, style=discord.ButtonStyle.primary, custom_id="standard"
     )
     async def second_button_callback(self, button, interaction):
-        await interaction.response.send_message(view=PaymentOptionsView(plan=plans[1]), ephemeral=True)
+        await interaction.response.send_message(
+            view=PaymentOptionsView(plan=plans[1]), ephemeral=True
+        )
 
     @discord.ui.button(
         label="Extra", row=0, style=discord.ButtonStyle.primary, custom_id="extra"
     )
     async def third_button_callback(self, button, interaction):
-        await interaction.response.send_message(view=PaymentOptionsView(plan=plans[2]), ephemeral=True)
+        await interaction.response.send_message(
+            view=PaymentOptionsView(plan=plans[2]), ephemeral=True
+        )
 
-class PaymentOptionsView(
-    discord.ui.View
-):
+
+class PaymentOptionsView(discord.ui.View):
     def __init__(self, plan):
-        super().__init__(timeout=None) 
+        super().__init__(timeout=None)
         self.plan = plan
-        print(self.plan['onetime_stripe_price_id'])
+        print(self.plan["onetime_stripe_price_id"])
 
     @discord.ui.button(
         label="One Time", row=0, style=discord.ButtonStyle.primary, custom_id="one-time"
     )
     async def first_button_callback(self, button, interaction):
-        await interaction.response.send_modal(TestFormModal(title='One Time Payment', plan=self.plan['onetime_stripe_price_id']))
+        await interaction.response.send_modal(
+            TestFormModal(
+                title="One Time Payment", plan=self.plan["onetime_stripe_price_id"]
+            )
+        )
 
     @discord.ui.button(
-        label="Recurring", row=0, style=discord.ButtonStyle.primary, custom_id="recurring"
+        label="Recurring",
+        row=0,
+        style=discord.ButtonStyle.primary,
+        custom_id="recurring",
     )
     async def second_button_callback(self, button, interaction):
-        await interaction.response.send_modal(TestFormModal(title='Recurring Payment', plan=self.plan['subscription_stripe_price_id']))
+        await interaction.response.send_modal(
+            TestFormModal(
+                title="Recurring Payment",
+                plan=self.plan["subscription_stripe_price_id"],
+            )
+        )
 
 
 @bot.slash_command(guild_ids=[GUILD_ID])
@@ -295,7 +330,7 @@ async def send_plan_menu(ctx):
             ),
             inline=False,
         )
-    
+
     embed.add_field(
         name="One Time Payment Plan",
         value="Your card details are not saved, you will need to manually add more time to avoid being removed.",
@@ -314,7 +349,6 @@ async def send_plan_menu(ctx):
         f"Sent the embed, persistent status: {PlanView.is_persistent(PlanView())}",
         ephemeral=True,
     )
-
 
 
 @bot.slash_command(guild_ids=[GUILD_ID])
