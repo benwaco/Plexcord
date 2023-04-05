@@ -49,6 +49,7 @@ except Exception as e:
 client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URL)
 db_plex = client["pycord"]
 db_payments = client["pycord"]
+db_subscriptions = client["pycord"]
 
 # Setup Discord Bot
 print("Connecting to Discord...")
@@ -207,28 +208,7 @@ async def status(ctx):
         await ctx.respond(f"Error retrieving your share status, {e}", ephemeral=True)
 
 
-class BasicModal(discord.ui.Modal):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-
-        self.add_item(discord.ui.InputText(label="Email Address"))
-
-    async def callback(self, interaction: discord.Interaction):
-        email = self.children[0].value
-        print(email, interaction.user.id, plans[0]["stripe_price_id"])
-        donate_return = await donate(
-            email, plans[0]["stripe_price_id"], interaction.user.id
-        )
-        await interaction.response.send_message(
-            f"Please pay the invoice at the following URL: {donate_return}, the link has also been messaged to you.",
-            ephemeral=True,
-        )
-        await interaction.user.send(
-            f"Please pay the invoice at the following URL: {donate_return}."
-        )
-
-
-class TestFormModal(discord.ui.Modal):
+class EmailModal(discord.ui.Modal):
     def __init__(self, plan, type, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.add_item(discord.ui.InputText(label="Email Address"))
@@ -247,36 +227,6 @@ class TestFormModal(discord.ui.Modal):
         await interaction.user.send(
             f"Please pay the invoice at the following URL: {donate_return}."
         )
-
-
-class StandardModal(discord.ui.Modal):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-
-        self.add_item(discord.ui.InputText(label="Email Address"))
-
-    async def callback(self, interaction: discord.Interaction):
-        email = self.children[0].value
-        print(email, interaction.user.id, plans[1]["stripe_price_id"])
-        donate_return = await donate(
-            email, plans[1]["stripe_price_id"], interaction.user.id
-        )
-        await interaction.response.send_message(donate_return, ephemeral=True)
-
-
-class ExtraModal(discord.ui.Modal):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-
-        self.add_item(discord.ui.InputText(label="Email Address"))
-
-    async def callback(self, interaction: discord.Interaction):
-        email = self.children[0].value
-        print(email, interaction.user.id, plans[2]["stripe_price_id"])
-        donate_return = await donate(
-            email, plans[2]["stripe_price_id"], interaction.user.id
-        )
-        await interaction.response.send_message(donate_return, ephemeral=True)
 
 
 class PlanView(
@@ -363,7 +313,7 @@ class PaymentOptionsView(discord.ui.View):
     )
     async def first_button_callback(self, button, interaction):
         await interaction.response.send_modal(
-            TestFormModal(
+            EmailModal(
                 title="One Time Payment",
                 plan=self.plan["onetime_stripe_price_id"],
                 type="onetime",
@@ -378,7 +328,7 @@ class PaymentOptionsView(discord.ui.View):
     )
     async def second_button_callback(self, button, interaction):
         await interaction.response.send_modal(
-            TestFormModal(
+            EmailModal(
                 title="Recurring Payment",
                 plan=self.plan["subscription_stripe_price_id"],
                 type="recurring",
