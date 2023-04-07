@@ -1,9 +1,10 @@
+import datetime
 import os
 
 import discord
 import dotenv
 import motor.motor_asyncio
-import stripe
+from async_stripe import stripe
 import yaml
 from discord.ext import tasks
 from plexapi.myplex import MyPlexAccount
@@ -21,6 +22,7 @@ PLEX_PASSWORD = os.getenv("PLEX_PASSWORD")
 PLEX_SERVER_NAME = os.getenv("PLEX_SERVER_NAME")
 DISCORD_ADMIN_ROLE_ID = os.getenv("DISCORD_ADMIN_ROLE_ID")
 STRIPE_API_KEY = os.getenv("STRIPE_API_KEY")
+DISCORD_ADMIN_ID = os.getenv("DISCORD_ADMIN_ID")
 
 
 def load_plans():
@@ -168,7 +170,7 @@ async def donate(email: str, stripe_price_id: str, discord_author_id: str, type)
             return session.url
     except Exception as e:
         print(e)
-        return f"Error creating your subscriptiuon, {e}"
+        return f"Error creating your subscription, {e}"
 
 
 @bot.slash_command(guild_ids=[GUILD_ID])
@@ -252,7 +254,7 @@ class PlanView(
                 f"4K Enabled: {'Yes' if plans[0]['4k_enabled'] else 'No'}\n"
             ),
             inline=False,
-        )       
+        )
         await interaction.response.send_message(
             view=PaymentOptionsView(plan=plans[0]), ephemeral=True, embed=embed
         )
@@ -274,7 +276,7 @@ class PlanView(
                 f"4K Enabled: {'Yes' if plans[1]['4k_enabled'] else 'No'}\n"
             ),
             inline=False,
-        )               
+        )
         await interaction.response.send_message(
             embed=embed, view=PaymentOptionsView(plan=plans[1]), ephemeral=True
         )
@@ -385,7 +387,7 @@ async def cancel_payment(ctx):
         if not existing_payment:
             await ctx.respond("No pending invoice found.", ephemeral=True)
             return
-        
+
         if existing_payment["type"] == "onetime":
             invoice_id = existing_payment["invoice_id"]
 
@@ -412,7 +414,7 @@ async def cancel_payment(ctx):
 
         else:
             session_id = existing_payment["session_id"]
-            #check if already paid 
+            # check if already paid
             session = stripe.checkout.Session.retrieve(session_id)
             if session.payment_status == "paid":
                 await ctx.respond(
@@ -430,8 +432,20 @@ async def cancel_payment(ctx):
         await ctx.respond(f"Error cancelling your invoice, {e}", ephemeral=True)
 
 
+async def contactAdmin(message):
+    admin = bot.get_user(int(DISCORD_ADMIN_ID))
+    if admin is not None:
+        try:
+            await admin.send(message)
+            print(f"Message sent to admin: {message}")
+        except discord.Forbidden:
+            print("The bot does not have permission to send messages to the admin.")
+    else:
+        print("Admin not found.")
+
 @bot.slash_command(guild_ids=[GUILD_ID])
 async def payment_complete(ctx):
+    print('payment complete')
     try:
         payment_data = await db_payments["payments"].find_one(
             {"discord_id": ctx.author.id, "paid": False}
@@ -442,36 +456,55 @@ async def payment_complete(ctx):
         
         try:
             invoice_id = payment_data["invoice_id"]
+            invoice = stripe.Invoice.retrieve(invoice_id)
         except:
-            pass
-        try:
             session_id = payment_data["session_id"]
-        except:
-            pass
+            session = stripe.checkout.Session.retrieve(session_id)
+            invoice = stripe.Invoice.retrieve(session.subscription)
+
+
 
         # Verify payment status with Stripe
+        print(payment_data)
         if type == "onetime":
-            invoice = stripe.Invoice.retrieve(invoice_id)
+            print('onetime')
+            print(invoice)
             if invoice.status == "paid":
-                # Update payment status in the database
-                await db_payments["payments"].update_one(
-                    {"discord_id": ctx.author.id, "invoice_id": invoice_id},
-                    {"$set": {"paid": True}},
-                )
+                try:
+                    # Update payment status in the database
+                    await db_payments["payments"].update_one(
+                        {"discord_id": ctx.author.id, "invoice_id": invoice_id},
+                        {"$set": {"paid": True}},
+                    )
 
-                # Add user to Plex
-                user_email = payment_data["email"]
-                await add_to_plex(user_email, ctx.author.id)
-
-                await ctx.respond(
-                    "Payment verified! You have been added to Plex.", ephemeral=True
-                )
+                    # Add user to Plex
+                    user_email = payment_data["email"]
+                    expiry_date = datetime.datetime.now() + datetime.timedelta(days=30)
+                    await db_subscriptions["subscriptions"].insert_one(
+                        {
+                            "discord_id": ctx.author.id,
+                            "email": user_email,
+                            "expiry_date": expiry_date,
+                            "type": "onetime",
+                        }
+                    )
+                    await add_to_plex(user_email, ctx.author.id)
+                    await ctx.respond(
+                        "Payment verified! You have been added to Plex.", ephemeral=True
+                    )
+                except Exception as e:
+                    # problem adding user to plex
+                    await ctx.respond(
+                        f"Payment verified, but there was an error adding you to Plex. Please contact an administrator. Error: {e}",
+                        ephemeral=True,
+                    )
             else:
                 await ctx.respond(
                     "Your payment hasn't been verified yet. Please wait for a while and try again.",
                     ephemeral=True,
                 )
-        else:
+        elif type == "recurring":
+            session_id = payment_data["session_id"]
             checkout = stripe.checkout.Session.retrieve(session_id)
             if checkout.payment_status == "paid":
                 # Update payment status in the database
@@ -601,7 +634,7 @@ async def count(ctx):
     await ctx.respond(f"{len(account.users())}/100 users", ephemeral=True)
 
 
-@tasks.loop(minutes=5.0)
+@tasks.loop(minutes=5)
 async def update_status_loop():
     print("Starting update...")
 
@@ -671,6 +704,69 @@ async def update_status_loop():
     print("Update completed.")
 
 
+@tasks.loop(minutes=1)
+async def update_subscription_loop():
+    # check every record in the subscription database
+    print("Starting subscription update...")
+    async for user in db_subscriptions["subscriptions"].find():
+        if user["expired"] == True:
+            return
+        else:
+            # check if users subscription expired by looking up their discord id in the subscriptions database
+            discord_id = user["discord_id"]
+            subscription = await db_subscriptions["subscriptions"].find_one(
+                {"discord_id": discord_id}
+            )
+            # check if subscription['expiry_date'] is less than today's date in UTC
+            if subscription["expiry_date"] < datetime.utcnow():
+                if user["share_status"] == "accepted":
+                    plex.MyPlexAccount.removeFriend(user["email"])
+                    await db_plex["plex"].update_one(
+                        {"discord_id": discord_id},
+                        {
+                            "$set": {"share_status": "expired"},
+                            "$set": {"archived": True},
+                        },
+                    )
+                    await db_subscriptions["subscriptions"].update_one(
+                        {"discord_id": discord_id}, {"$set": {"expired": True}}
+                    )
+                elif user["share_status"] == "pending":
+                    plex.MyPlexAccount.cancelInvite(user["email"])
+                    await db_plex["plex"].update_one(
+                        {"discord_id": discord_id},
+                        {
+                            "$set": {"share_status": "expired"},
+                            "$set": {"archived": True},
+                        },
+                    )
+                    await db_subscriptions["subscriptions"].update_one(
+                        {"discord_id": discord_id}, {"$set": {"expired": True}}
+                    )
+                elif user["share_status"] == "rejected":
+                    await db_plex["plex"].update_one(
+                        {"discord_id": discord_id},
+                        {
+                            "$set": {"share_status": "expired"},
+                            "$set": {"archived": True},
+                        },
+                    )
+                    await db_subscriptions["subscriptions"].update_one(
+                        {"discord_id": discord_id}, {"$set": {"expired": True}}
+                    )
+                else:
+                    await db_subscriptions["subscriptions"].update_one(
+                        {"discord_id": discord_id}, {"$set": {"expired": True}}
+                    )
+                    await contactAdmin(
+                        f"Error: {discord_id} has an invalid share status of {user['share_status']} and their subscription has expired."
+                    )
+    print("Subscription update completed.")
+    await contactAdmin("Subscription update completed.")
+
+
+
 update_status_loop.start()
+update_subscription_loop.start()
 
 bot.run(DISCORD_TOKEN)
