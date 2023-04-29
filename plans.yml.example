@@ -6,6 +6,7 @@ plans:
     downloads_enabled: false
     4k_enabled: false
     type: one-time
+    role_id: ADD HERE
 
   - name: Standard
     stripe_price_id: ADD HERE
@@ -14,6 +15,7 @@ plans:
     downloads_enabled: true
     4k_enabled: true
     type: one-time
+    role_id: ADD HERE
 
   - name: Extra
     stripe_price_id: ADD HERE
@@ -22,3 +24,4 @@ plans:
     downloads_enabled: true
     4k_enabled: true
     type: one-time
+    role_id: ADD HERE
