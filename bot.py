@@ -104,9 +104,7 @@ async def ping(ctx):
     await ctx.respond(f"Pong! {int(bot.latency * 1000)}ms", ephemeral=True)
 
 
-async def donate(
-    email: str, stripe_price_id: str, discord_author_id: str, plan_name
-):
+async def donate(email: str, stripe_price_id: str, discord_author_id: str, plan_name):
     try:
         # Check if the user already has a pending invoice
         existing_payment = await db_payments["payments"].find_one(
@@ -347,7 +345,6 @@ class ManageSubscriptionMenu(discord.ui.View):
         await interaction.user.send(
             f"Please pay the invoice at the following URL: {donate_return}."
         )
-        
 
     @discord.ui.button(
         label="Complete Payment",
@@ -359,6 +356,7 @@ class ManageSubscriptionMenu(discord.ui.View):
         await interaction.response.send_message(
             await complete_payment(interaction.user.id), ephemeral=True
         )
+
     @discord.ui.button(
         label="Cancel Payment",
         row=0,
@@ -369,6 +367,7 @@ class ManageSubscriptionMenu(discord.ui.View):
         await interaction.response.send_message(
             await cancel_payment(interaction.user.id), ephemeral=True
         )
+
 
 async def checkSubscriptionInfo(discord_id):
     plex_data = await db_plex["plex"].find_one({"discord_id": discord_id})
@@ -633,9 +632,11 @@ async def complete_payment(discord_id):
             # edit the expiry date in the plex database
             try:
                 if await db_plex["plex"].find_one({"email": user_email}):
-                    current_expiry = await db_plex["plex"].find_one({"email": user_email})   
-                    current_expiry = current_expiry['expiration_date']  
-                    expiration_date = current_expiry + datetime.timedelta(days=30)  
+                    current_expiry = await db_plex["plex"].find_one(
+                        {"email": user_email}
+                    )
+                    current_expiry = current_expiry["expiration_date"]
+                    expiration_date = current_expiry + datetime.timedelta(days=30)
                     await db_plex["plex"].update_one(
                         {"email": user_email},
                         {
@@ -647,8 +648,10 @@ async def complete_payment(discord_id):
 
                     return "Time was added to your account."
                 await add_to_plex(user_email, discord_id)
-                #check if user already has an expiration date (adding time) 
-                current_expiry = await db_plex["plex"].find_one({"email": user_email})['expiration_date']         
+                # check if user already has an expiration date (adding time)
+                current_expiry = await db_plex["plex"].find_one({"email": user_email})[
+                    "expiration_date"
+                ]
                 expiration_date = datetime.datetime.now() + datetime.timedelta(days=30)
                 await db_plex["plex"].update_one(
                     {"email": user_email},
