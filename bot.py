@@ -43,8 +43,9 @@ stripe.api_key = STRIPE_API_KEY
 try:
     print("Connecting to Plex Server...")
     account = MyPlexAccount(PLEX_USERNAME, PLEX_PASSWORD)
+    print('worked')
     plex = account.resource(PLEX_SERVER_NAME).connect()  # returns a PlexServer instance
-    
+
 except Exception as e:
     print(e)
     sys.exit()
@@ -60,7 +61,7 @@ for section in plex.library.sections():
     if "4K" not in section.title:
         sections_standard.append(section)
     sections_all.append(section)
-    
+
 
 # Setup MongoDB with motor
 client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URL)
@@ -76,18 +77,21 @@ bot = discord.Bot(intents=intents)
 
 @bot.event
 async def on_ready():
-    bot.add_view(PlanView())  # Registers a View for persistent listening
+    bot.add_view(PlanView())
+    bot.add_view(ManageSubscriptionButton())  # Registers a View for persistent listening
     print(f"We have logged in as {bot.user}")
 
 
 async def add_to_plex(email, discord_id, plan_name):
     try:
         print(21)
-        
+
         print(22)
         print(23)
         # find "downloads_enabled" and "4k_enabled" in the plans value and set them to the vars here
-        selected_plan = next((plan for plan in plans if plan["name"] == plan_name), None)
+        selected_plan = next(
+            (plan for plan in plans if plan["name"] == plan_name), None
+        )
         downloads_enabled = selected_plan["downloads_enabled"]
         print(24)
         enabled_4k = selected_plan["4k_enabled"]
@@ -195,7 +199,6 @@ async def add_time(discord_id):
     return await donate(email, stripe_price_id, discord_id, plan_name)
 
 
-
 class EmailModal(discord.ui.Modal):
     def __init__(self, plan, plan_name, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -230,15 +233,12 @@ class EmailModal(discord.ui.Modal):
 
 @bot.slash_command(guild_ids=[GUILD_ID])
 async def send_subscription_menu(ctx):
-    if ctx.author.id != DISCORD_ADMIN_ID:
-        await ctx.respond("You are not an admin.", ephemeral=True)
-        return
     embed = discord.Embed(
         title="Manage Subscription",
         description="Click the button below to manage your subscription.",
         color=discord.Color.blue(),
     )
-
+    print('testing for ul 1')
     await ctx.send(embed=embed, view=ManageSubscriptionButton())
 
     await ctx.respond(
@@ -260,6 +260,7 @@ class ManageSubscriptionButton(
         custom_id="manage_subscription",
     )
     async def first_button_callback(self, button, interaction):
+        print('testing for ul 2')
         subscription_info = await checkSubscriptionInfo(interaction.user.id)
         print(subscription_info)
         expiration_date = subscription_info[0]
@@ -461,12 +462,57 @@ class PaymentOptionsView(discord.ui.View):
         )
 
 
+@bot.slash_command(guild_ids=[GUILD_ID])
+async def migrate(ctx):
+    record = await db_plex["plex"].find_one({"discord_id": ctx.author.id})
+    if record == None:
+        await ctx.respond(
+            "You are not a current paid user. Please use #join to subscribe.",
+            ephemeral=True,
+        )
+        return
+    else:
+        selected_plan = next(
+            (plan for plan in plans if plan["name"] == record["plan_name"]), None
+        )
+        downloads_enabled = selected_plan["downloads_enabled"]
+        print(24)
+        enabled_4k = selected_plan["4k_enabled"]
+        print(25)
+        if enabled_4k:
+            add_sections = sections_all
+            print(26)
+        else:
+            add_sections = sections_standard
+            print(27)
+        try:
+            plex.myPlexAccount().inviteFriend(
+                record["email"],
+                plex,
+                allowSync=downloads_enabled,
+                sections=add_sections,
+            )
+        except Exception as e:
+            print(e)
+            await ctx.respond(
+                f"There was an error migrating your account. Please contact an admin. Error: {e}",
+                ephemeral=True,
+            )
+            return
+        plan = record["plan_name"]
+        # add role to user
+        role_id = next(item for item in plans if item["name"] == plan)["role_id"]
+        role = discord.utils.get(bot.get_guild(int(GUILD_ID)).roles, id=int(role_id))
+        await bot.get_guild(int(GUILD_ID)).get_member(record['discord_id']).add_roles(role)
+        expiration_date = record["expiration_date"]
+        await ctx.respond(
+            f"Your account has been migrated to {plan}, and expires in {expiration_date.days}. Please check your email for an invite to the new server.",
+            ephemeral=True,
+        )
+
 
 @bot.slash_command(guild_ids=[GUILD_ID])
 async def send_plan_menu(ctx):
-    if ctx.author.id != DISCORD_ADMIN_ID:
-        await ctx.respond("You are not an admin.", ephemeral=True)
-        return
     embed = discord.Embed(
         title="Plex Plans",
         description="Choose the plan that best suits your needs:",
@@ -489,7 +535,6 @@ async def send_plan_menu(ctx):
         value="Your card details are not saved, you will need to manually add more time to avoid being removed.",
         inline=False,
     )
-
 
     await ctx.send(embed=embed, view=PlanView())
 
@@ -574,7 +619,7 @@ async def complete_payment(discord_id):
         print(2)
         print(plex_test)
         # edit the expiry date in the plex database
-        if plex_test: # if user already exists
+        if plex_test:  # if user already exists
             print(3)
             current_expiry = plex_test["expiration_date"]
             print(4)
@@ -592,11 +637,13 @@ async def complete_payment(discord_id):
             print(6)
 
             return "Time was added to your account."
-        try: 
+        try:
             print(10)
             print(user_email)
             print(discord_id)
-            add_to_plex_result = await add_to_plex(user_email, discord_id, payment_data["plan_name"])
+            add_to_plex_result = await add_to_plex(
+                user_email, discord_id, payment_data["plan_name"]
+            )
             if add_to_plex_result != True:
                 return f"Payment verified, but there was an error adding you to Plex. Please contact an administrator. Error: {add_to_plex_result}"
             print(11)
@@ -616,18 +663,13 @@ async def complete_payment(discord_id):
         )
         plan = payment_data["plan_name"]
         # find the role id in plans list from the plan name
-        role_id = next(item for item in plans if item["name"] == plan)[
-            "role_id"
-        ]
-        role = discord.utils.get(
-            bot.get_guild(int(GUILD_ID)).roles, id=int(role_id)
-        )
-        await bot.get_guild(int(GUILD_ID)).get_member(discord_id).add_roles(
-            role
-        )
+        role_id = next(item for item in plans if item["name"] == plan)["role_id"]
+        role = discord.utils.get(bot.get_guild(int(GUILD_ID)).roles, id=int(role_id))
+        await bot.get_guild(int(GUILD_ID)).get_member(discord_id).add_roles(role)
         return "Payment verified! You have been added to Plex."
     except Exception as e:
         return f"Error, please contact an administrator. Error: {e}"
+
 
 async def isExpired(date):
     expired = date < datetime.datetime.utcnow()
@@ -698,7 +740,10 @@ async def subscriptionCheckerLoop():
                 )
         else:
             days_remaining = remaining
-            if days_remaining in [5, 3, 1] and days_remaining not in user['sent_notifications']:
+            if (
+                days_remaining in [5, 3, 1]
+                and days_remaining not in user["sent_notifications"]
+            ):
                 # add the days_remaining to the list sent_notifications
                 await db_plex["plex"].update_one(
                     {"discord_id": user["discord_id"]},
@@ -718,7 +763,6 @@ async def subscriptionCheckerLoop():
     print("Subscription checker loop completed.")
     await contactAdmin("Subscription checker loop completed.")
     return
-
 
 
 subscriptionCheckerLoop.start()
