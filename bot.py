@@ -2,6 +2,7 @@ import datetime
 import math
 import os
 import sys
+
 import discord
 import dotenv
 import motor.motor_asyncio
@@ -43,7 +44,7 @@ stripe.api_key = STRIPE_API_KEY
 try:
     print("Connecting to Plex Server...")
     account = MyPlexAccount(PLEX_USERNAME, PLEX_PASSWORD)
-    print('worked')
+    print("worked")
     plex = account.resource(PLEX_SERVER_NAME).connect()  # returns a PlexServer instance
 
 except Exception as e:
@@ -78,7 +79,9 @@ bot = discord.Bot(intents=intents)
 @bot.event
 async def on_ready():
     bot.add_view(PlanView())
-    bot.add_view(ManageSubscriptionButton())  # Registers a View for persistent listening
+    bot.add_view(
+        ManageSubscriptionButton()
+    )  # Registers a View for persistent listening
     print(f"We have logged in as {bot.user}")
 
 
@@ -146,7 +149,7 @@ async def donate(email: str, stripe_price_id: str, discord_author_id: str, plan_
         )
         if existing_payment is not None:
             return (
-                f"You already have a pending invoice. Please pay it at {existing_payment['invoice_url']} or use the cancel button to cancel the existing invoice before creating a new one.",
+                f"You already have a pending invoice for the plan **{existing_payment['plan_name']}**. Please pay it at {existing_payment['invoice_url']} or use the cancel button to cancel the existing invoice before creating a new one.  **Click the green Complete Payment button after paying**",
             )
 
         # Create Stripe customer
@@ -223,11 +226,11 @@ class EmailModal(discord.ui.Modal):
             )
             return
         await interaction.response.send_message(
-            f"Please pay the invoice at the following URL: {donate_return}, the link has also been messaged to you.",
+            f"Please pay the invoice at the following URL: {donate_return}, the link has also been messaged to you. **Click the green Complete Payment button after paying**",
             ephemeral=True,
         )
         await interaction.user.send(
-            f"Please pay the invoice at the following URL: {donate_return}."
+            f"Please pay the invoice at the following URL: {donate_return}.  **Click the green Complete Payment button after paying**"
         )
 
 
@@ -238,7 +241,7 @@ async def send_subscription_menu(ctx):
         description="Click the button below to manage your subscription.",
         color=discord.Color.blue(),
     )
-    print('testing for ul 1')
+    print("testing for ul 1")
     await ctx.send(embed=embed, view=ManageSubscriptionButton())
 
     await ctx.respond(
@@ -260,7 +263,7 @@ class ManageSubscriptionButton(
         custom_id="manage_subscription",
     )
     async def first_button_callback(self, button, interaction):
-        print('testing for ul 2')
+        print("testing for ul 2")
         subscription_info = await checkSubscriptionInfo(interaction.user.id)
         print(subscription_info)
         expiration_date = subscription_info[0]
@@ -309,11 +312,11 @@ class ManageSubscriptionMenu(discord.ui.View):
             )
             return
         await interaction.response.send_message(
-            f"Please pay the invoice at the following URL: {donate_return}, the link has also been messaged to you.",
+            f"Please pay the invoice at the following URL: {donate_return}, the link has also been messaged to you.  **Click the green Complete Payment button after paying**",
             ephemeral=True,
         )
         await interaction.user.send(
-            f"Please pay the invoice at the following URL: {donate_return}."
+            f"Please pay the invoice at the following URL: {donate_return}.  **Click the green Complete Payment button after paying**"
         )
 
     @discord.ui.button(
@@ -503,10 +506,14 @@ async def migrate(ctx):
         # add role to user
         role_id = next(item for item in plans if item["name"] == plan)["role_id"]
         role = discord.utils.get(bot.get_guild(int(GUILD_ID)).roles, id=int(role_id))
-        await bot.get_guild(int(GUILD_ID)).get_member(record['discord_id']).add_roles(role)
+        await bot.get_guild(int(GUILD_ID)).get_member(record["discord_id"]).add_roles(
+            role
+        )
         expiration_date = record["expiration_date"]
+        days_remaining = (expiration_date - datetime.datetime.now()).days
+
         await ctx.respond(
-            f"Your account has been migrated to {plan}, and expires in {expiration_date.days}. Please check your email for an invite to the new server.",
+            f"Your account has been migrated to {plan}, and expires in {days_remaining}. Please check your email for an invite to the new server.",
             ephemeral=True,
         )
 
