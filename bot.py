@@ -702,10 +702,7 @@ async def subscriptionCheckerLoop():
             plan = user["plan_name"]
             discord_id = user["discord_id"]
             await db_plex["plex"].delete_one(
-                {"discord_id": user["discord_id"]},
-                {
-                    "$set": {"expired": True},
-                },
+                {"discord_id": user["discord_id"]}
             )
             try:
                 
