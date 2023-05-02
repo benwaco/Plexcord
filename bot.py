@@ -692,9 +692,6 @@ async def subscriptionCheckerLoop():
     async for user in db_plex["plex"].find():
         expired_check = await isExpired(user["expiration_date"])
         print(user)
-        if user["expired"]:
-            print("trump biden")
-            return
         print("obmaa")
         expired = expired_check[0]
         remaining = expired_check[1]
