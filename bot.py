@@ -2,7 +2,7 @@ import datetime
 import math
 import os
 import sys
-
+import time
 import discord
 import dotenv
 import motor.motor_asyncio
@@ -686,6 +686,7 @@ async def isExpired(date):
 
 @tasks.loop(hours=12)
 async def subscriptionCheckerLoop():
+    time.sleep(10)
     await contactAdmin("Starting subscription checker loop...")
     print("Starting subscription checker loop...")
     async for user in db_plex["plex"].find():
