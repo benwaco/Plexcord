@@ -700,26 +700,29 @@ async def subscriptionCheckerLoop():
 
         if expired:
             await contactAdmin(f'{user["discord_id"]}\'s subscription has expired.')
-            await db_plex["plex"].update_one(
+            email = user["email"]
+            plan = user["plan_name"]
+            discord_id = user["discord_id"]
+            await db_plex["plex"].delete_one(
                 {"discord_id": user["discord_id"]},
                 {
                     "$set": {"expired": True},
                 },
             )
             try:
-                print(user["email"])
-                plex.myPlexAccount().removeFriend(user["email"])
-                print(f'Removed {user["email"]} from friends list.')
+                
+                plex.myPlexAccount().removeFriend(email)
+                print(f'Removed {email} from friends list.')
             except:
                 try:
-                    plex.myPlexAccount().cancelInvite(user["email"])
-                    print(f'Cancelled invite for {user["email"]}.')
+                    plex.myPlexAccount().cancelInvite(email)
+                    print(f'Cancelled invite for {email}.')
                 except:
                     print(
-                        f'Failed to remove {user["email"]} from friends list or cancel invite.'
+                        f'Failed to remove {email} from friends list or cancel invite.'
                     )
             # give user the role according to their plan
-            plan = user["plan_name"]
+
             # find the role id in plans list from the plan name
             role_id = next(item for item in plans if item["name"] == plan)["role_id"]
             role = discord.utils.get(
@@ -737,7 +740,7 @@ async def subscriptionCheckerLoop():
             # message user
             try:
                 await bot.get_guild(int(GUILD_ID)).get_member(
-                    int(user["discord_id"])
+                    int(discord_id)
                 ).send(
                     f"Your subscription has expired. You have been removed from the server."
                 )
