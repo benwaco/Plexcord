@@ -3,6 +3,7 @@ plans.yml
 test.py
 # Byte-compiled / optimized / DLL files
 __pycache__/
+.DS_Store
 *.pyc
 *.pyo
 *.pyd
