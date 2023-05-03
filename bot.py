@@ -347,7 +347,7 @@ async def send_plans_embed(ctx):
             ),
             inline=False,
         )
-    await ctx.send(embed=embed, view=PlanView())
+    await ctx.send(embed=embed)
 
 async def checkSubscriptionInfo(discord_id):
     plex_data = await db_plex["plex"].find_one({"discord_id": discord_id})
