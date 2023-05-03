@@ -35,6 +35,10 @@ def load_plans():
 
 plans = load_plans()
 
+role_ids = []
+
+for plan in plans:
+    role_ids.append(plan["role_id"])
 
 # Setup Stripe
 stripe.api_key = STRIPE_API_KEY
@@ -326,6 +330,19 @@ class ManageSubscriptionMenu(discord.ui.View):
         await interaction.response.send_message(
             await cancel_payment(interaction.user.id), ephemeral=True
         )
+
+# make a list of role ids from plans yml
+
+
+@bot.slash_command(guild_ids=[GUILD_ID])
+async def upload_subtitles(ctx, media_url: discord.Option(discord.SlashCommandOptionType.string), subtitle_file: discord.Option(discord.SlashCommandOptionType.attachment)):
+    if ctx.author.id not in role_ids:
+        await ctx.respond(
+            "You do not have permission to use this command.", ephemeral=True
+        )
+        return
+    await ctx.respond("Uploading subtitles...", ephemeral=True)
+    
 
 @bot.slash_command(guild_ids=[GUILD_ID])
 async def send_plans_embed(ctx):
