@@ -237,6 +237,10 @@ class EmailModal(discord.ui.Modal):
 @bot.slash_command(guild_ids=[GUILD_ID])
 async def send_subscription_menu(ctx):
     if DISCORD_ADMIN_ROLE_ID not in [role.id for role in ctx.author.roles]:
+        print(DISCORD_ADMIN_ROLE_ID)
+        print(type(DISCORD_ADMIN_ROLE_ID))
+        print([role.id for role in ctx.author.roles])
+        print(type([role.id for role in ctx.author.roles]))
         await ctx.respond(
             "You do not have permission to use this command.", ephemeral=True
         )
