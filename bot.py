@@ -343,7 +343,7 @@ async def upload_subtitles(ctx, media_url: discord.Option(discord.SlashCommandOp
     for r in ctx.author.roles:
         author_roles.append(r.id)
 
-    if not any(item in role_ids for item in author_roles) or int(DISCORD_ADMIN_ROLE_ID) not in author_roles:
+    if int(DISCORD_ADMIN_ROLE_ID) not in author_roles:
         await ctx.respond(
             "You do not have permission to use this command.", ephemeral=True
         )
