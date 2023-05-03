@@ -236,6 +236,12 @@ class EmailModal(discord.ui.Modal):
 
 @bot.slash_command(guild_ids=[GUILD_ID])
 async def send_subscription_menu(ctx):
+    if DISCORD_ADMIN_ROLE_ID not in [role.id for role in ctx.author.roles]:
+        await ctx.respond(
+            "You do not have permission to use this command.", ephemeral=True
+        )
+        return
+
     embed = discord.Embed(
         title="Manage Subscription",
         description="Click the button below to manage your subscription.",
@@ -520,6 +526,11 @@ async def migrate(ctx):
 
 @bot.slash_command(guild_ids=[GUILD_ID])
 async def send_plan_menu(ctx):
+    if DISCORD_ADMIN_ROLE_ID not in [role.id for role in ctx.author.roles]:
+        await ctx.respond(
+            "You do not have permission to use this command.", ephemeral=True
+        )
+        return
     embed = discord.Embed(
         title="Plex Plans",
         description="Choose the plan that best suits your needs:",
