@@ -336,7 +336,11 @@ class ManageSubscriptionMenu(discord.ui.View):
 
 @bot.slash_command(guild_ids=[GUILD_ID])
 async def upload_subtitles(ctx, media_url: discord.Option(discord.SlashCommandOptionType.string), subtitle_file: discord.Option(discord.SlashCommandOptionType.attachment)):
-    if ctx.author.id not in role_ids:
+    author_roles = []
+    for r in ctx.author.roles:
+        author_roles.append(r.id)
+
+    if any(item in role_ids for item in author_roles) or int(DISCORD_ADMIN_ROLE_ID) in author_roles:
         await ctx.respond(
             "You do not have permission to use this command.", ephemeral=True
         )
