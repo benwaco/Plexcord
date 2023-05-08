@@ -825,17 +825,29 @@ async def stats_update():
         if voice_channels == 0:
             # create two channels, one for movies and one for tv shows and episodes counts
             mc = await stats_category.create_voice_channel(name="Movies")
-            tc = await stats_category.create_voice_channel(name="TV Shows and Episodes")
+            tc = await stats_category.create_voice_channel(name="TV Shows")
+            ec = await stats_category.create_voice_channel(name="Episodes")
         else:
             # get the channels
             for channel in voice_channels:
-                # delete channel
                 await channel.delete()
             mc = await stats_category.create_voice_channel(name="Movies")
-            tc = await stats_category.create_voice_channel(name="TV Shows and Episodes")
+            tc = await stats_category.create_voice_channel(name="TV Shows")
+            ec = await stats_category.create_voice_channel(name="Episodes")
+        # make each voice channel not joinable
+        await mc.set_permissions(
+            bot.get_guild(int(GUILD_ID)).default_role, connect=False
+        )
+        await tc.set_permissions(
+            bot.get_guild(int(GUILD_ID)).default_role, connect=False
+        )
+        await ec.set_permissions(
+            bot.get_guild(int(GUILD_ID)).default_role, connect=False
+        )
         # update the MC (movies) and TC (others), {count} Movies / {count} Shows | {count} Episodes
         await mc.edit(name=f"{movie_count} Movies")
-        await tc.edit(name=f"{tv_count} Shows | {episodes_count} Episodes")
+        await tc.edit(name=f"{tv_count} Shows")
+        await ec.edit(name=f"{episodes_count} Episodes")
         await contactAdmin(
             f"Stats updated. Movies: {movie_count}, TV Shows: {tv_count}, Episodes: {episodes_count}"
         )
