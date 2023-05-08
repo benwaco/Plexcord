@@ -815,6 +815,11 @@ async def stats_update():
             tv_count += tv_section.totalSize
             episodes_count += tv_section.totalViewSize(libtype="episode")
 
+        # add a comma to each count if needed
+        movie_count = "{:,}".format(movie_count)
+        tv_count = "{:,}".format(tv_count)
+        episodes_count = "{:,}".format(episodes_count)
+
         # find the discord category with the STATS_CHANNEL_ID value
         stats_category = discord.utils.get(
             bot.get_guild(int(GUILD_ID)).categories, id=int(STATS_CHANNEL_ID)
