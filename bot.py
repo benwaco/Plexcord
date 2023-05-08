@@ -74,7 +74,6 @@ for section in plex.library.sections():
 
     if section.type == "movie":
         sections_movies.append(section)
-        print(section.totalSize())
     elif section.type == "show":
         sections_tv.append(section)
 
