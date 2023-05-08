@@ -78,8 +78,6 @@ for section in plex.library.sections():
         sections_tv.append(section)
 
 
-
-
 # Setup MongoDB with motor
 client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URL)
 db_plex = client["pycord"]
@@ -348,11 +346,16 @@ class ManageSubscriptionMenu(discord.ui.View):
             await cancel_payment(interaction.user.id), ephemeral=True
         )
 
+
 # make a list of role ids from plans yml
 
 
 @bot.slash_command(guild_ids=[GUILD_ID])
-async def upload_subtitles(ctx, media_url: discord.Option(discord.SlashCommandOptionType.string), subtitle_file: discord.Option(discord.SlashCommandOptionType.attachment)):
+async def upload_subtitles(
+    ctx,
+    media_url: discord.Option(discord.SlashCommandOptionType.string),
+    subtitle_file: discord.Option(discord.SlashCommandOptionType.attachment),
+):
     author_roles = []
     for r in ctx.author.roles:
         author_roles.append(r.id)
@@ -363,7 +366,7 @@ async def upload_subtitles(ctx, media_url: discord.Option(discord.SlashCommandOp
         )
         return
     await ctx.respond("Uploading subtitles...", ephemeral=True)
-    
+
 
 @bot.slash_command(guild_ids=[GUILD_ID])
 async def send_plans_embed(ctx):
@@ -386,6 +389,7 @@ async def send_plans_embed(ctx):
             inline=False,
         )
     await ctx.send(embed=embed)
+
 
 async def checkSubscriptionInfo(discord_id):
     plex_data = await db_plex["plex"].find_one({"discord_id": discord_id})
@@ -650,7 +654,6 @@ async def contactAdmin(message):
         print("Admin not found.")
 
 
-
 async def complete_payment(discord_id):
     try:
         payment_data = await db_payments["payments"].find_one(
@@ -798,6 +801,7 @@ async def subscriptionCheckerLoop():
     )
     return
 
+
 @tasks.loop(hours=12)
 async def stats_update():
     try:
@@ -806,34 +810,37 @@ async def stats_update():
         episodes_count = 0
         for movie_section in sections_movies:
             movie_count += movie_section.totalSize
-        
+
         for tv_section in sections_tv:
             tv_count += tv_section.totalSize
-            episodes_count += tv_section.totalViewSize(libtype='episode')
-
-        print(f"Movie count: {movie_count}")
-        print(f"TV count: {tv_count}")
-        print(f"Episodes count: {episodes_count}")
+            episodes_count += tv_section.totalViewSize(libtype="episode")
 
         # find the discord category with the STATS_CHANNEL_ID value
-        stats_category = discord.utils.get(bot.get_guild(int(GUILD_ID)).categories, id=int(STATS_CHANNEL_ID))
+        stats_category = discord.utils.get(
+            bot.get_guild(int(GUILD_ID)).categories, id=int(STATS_CHANNEL_ID)
+        )
         # check how many voice channels in this category
         voice_channels = stats_category.voice_channels
+
         if voice_channels == 0:
             # create two channels, one for movies and one for tv shows and episodes counts
             mc = await stats_category.create_voice_channel(name="Movies")
             tc = await stats_category.create_voice_channel(name="TV Shows and Episodes")
         else:
-            mc = voice_channels[0]
-            tc = voice_channels[1]
+            # get the channels
+            for channel in voice_channels:
+                if "Movies" in channel.name:
+                    mc = channel
+                elif "Episodes" in channel.name:
+                    tc = channel
         # update the MC (movies) and TC (others), {count} Movies / {count} Shows | {count} Episodes
         await mc.edit(name=f"{movie_count} Movies")
         await tc.edit(name=f"{tv_count} Shows | {episodes_count} Episodes")
-        await contactAdmin(f"Stats updated. Movies: {movie_count}, TV Shows: {tv_count}, Episodes: {episodes_count}")
+        await contactAdmin(
+            f"Stats updated. Movies: {movie_count}, TV Shows: {tv_count}, Episodes: {episodes_count}"
+        )
     except Exception as e:
         await contactAdmin(f"Error updating stats: {e}")
-
-    
 
 
 bot.run(DISCORD_TOKEN)
