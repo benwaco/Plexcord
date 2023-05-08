@@ -802,14 +802,17 @@ async def subscriptionCheckerLoop():
 async def stats_update():
     movie_count = 0
     tv_count = 0
+    episodes_count = 0
     for movie_section in sections_movies:
         movie_count += movie_section.totalSize
     
     for tv_section in sections_tv:
         tv_count += tv_section.totalSize
+        episodes_count += tv_section.totalViewSize(libtype='episode')
 
     print(f"Movie count: {movie_count}")
     print(f"TV count: {tv_count}")
+    print(f"Episodes count: {episodes_count}")
 
 
 bot.run(DISCORD_TOKEN)
