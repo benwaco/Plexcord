@@ -486,6 +486,19 @@ class PaymentOptionsView(discord.ui.View):
         label="One Time", row=0, style=discord.ButtonStyle.primary, custom_id="one-time"
     )
     async def first_button_callback(self, button, interaction):
+        count = await db_plex["plex"].count_documents({})
+        if count == 100:
+            await interaction.response.send_message(
+                "The server is currently full. Please try again later.", ephemeral=True
+            )
+            return
+        check = await db_plex["plex"].find_one({"discord_id": interaction.user.id})
+        if check != None:
+            await interaction.response.send_message(
+                "You are already in the database, please run /migrate. If this is in error, please contact an admin.",
+                ephemeral=True,
+            )
+            return
         await interaction.response.send_modal(
             EmailModal(
                 title="One Time Payment",
@@ -597,7 +610,7 @@ async def cancel_payment(discord_id):
 
         # Check if the invoice is already paid
         if invoice.status == "paid":
-            return "The invoice has already been paid. If you want a refund, please contact an administrator. Please use the complete button to complete the process."
+            return "The invoice has already been paid. If you want a refund, please contact The Governor. Please use the complete button to complete the process."
 
         # Cancel the invoice
         await stripe.Invoice.void_invoice(invoice_id)
