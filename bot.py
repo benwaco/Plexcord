@@ -74,6 +74,7 @@ for section in plex.library.sections():
 
     if section.type == "movie":
         sections_movies.append(section)
+        print(section.totalSize())
     elif section.type == "show":
         sections_tv.append(section)
 
@@ -803,10 +804,10 @@ async def stats_update():
     movie_count = 0
     tv_count = 0
     for movie_section in sections_movies:
-        movie_count += movie_section.totalSize()
+        movie_count += movie_section.totalSize
     
     for tv_section in sections_tv:
-        tv_count += tv_section.totalSize()
+        tv_count += tv_section.totalSize
 
     print(f"Movie count: {movie_count}")
     print(f"TV count: {tv_count}")
