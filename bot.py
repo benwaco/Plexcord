@@ -25,6 +25,8 @@ PLEX_SERVER_NAME = os.getenv("PLEX_SERVER_NAME")
 DISCORD_ADMIN_ROLE_ID = os.getenv("DISCORD_ADMIN_ROLE_ID")
 STRIPE_API_KEY = os.getenv("STRIPE_API_KEY")
 DISCORD_ADMIN_ID = os.getenv("DISCORD_ADMIN_ID")
+STATS = os.getenv("STATS")
+STATS_CHANNEL_ID = os.getenv("STATS_CHANNEL_ID")
 
 
 def load_plans():
@@ -62,10 +64,20 @@ sections_standard = []
 sections_4k = []
 sections_all = []
 
+sections_movies = []
+sections_tv = []
+
 for section in plex.library.sections():
     if "4K" not in section.title:
         sections_standard.append(section)
     sections_all.append(section)
+
+    if section.type == "movie":
+        sections_movies.append(section)
+    elif section.type == "show":
+        sections_tv.append(section)
+
+
 
 
 # Setup MongoDB with motor
@@ -87,6 +99,8 @@ async def on_ready():
         ManageSubscriptionButton()
     )  # Registers a View for persistent listening
     subscriptionCheckerLoop.start()
+    if STATS == "true":
+        stats_update.start()
     print(f"We have logged in as {bot.user}")
 
 
@@ -636,6 +650,7 @@ async def contactAdmin(message):
         print("Admin not found.")
 
 
+
 async def complete_payment(discord_id):
     try:
         payment_data = await db_payments["payments"].find_one(
@@ -782,6 +797,19 @@ async def subscriptionCheckerLoop():
         f"Subscription checker loop completed, sleeping for 12 hours. Removed {expired_removed} expired users."
     )
     return
+
+@tasks.loop(hours=12)
+async def stats_update():
+    movie_count = 0
+    tv_count = 0
+    for movie_section in sections_movies:
+        movie_count += movie_section.totalSize()
+    
+    for tv_section in sections_tv:
+        tv_count += tv_section.totalSize()
+
+    print(f"Movie count: {movie_count}")
+    print(f"TV count: {tv_count}")
 
 
 bot.run(DISCORD_TOKEN)
