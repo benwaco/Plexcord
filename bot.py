@@ -829,10 +829,10 @@ async def stats_update():
         else:
             # get the channels
             for channel in voice_channels:
-                if "Movies" in channel.name:
-                    mc = channel
-                elif "Episodes" in channel.name:
-                    tc = channel
+                # delete channel
+                await channel.delete()
+            mc = await stats_category.create_voice_channel(name="Movies")
+            tc = await stats_category.create_voice_channel(name="TV Shows and Episodes")
         # update the MC (movies) and TC (others), {count} Movies / {count} Shows | {count} Episodes
         await mc.edit(name=f"{movie_count} Movies")
         await tc.edit(name=f"{tv_count} Shows | {episodes_count} Episodes")
