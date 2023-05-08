@@ -619,11 +619,6 @@ async def cancel_payment(discord_id):
         await db_payments["payments"].delete_one(
             {"discord_id": discord_id, "invoice_id": invoice_id}
         )
-        # change the active status in payments to false
-        await db_payments["payments"].update_one(
-            {"discord_id": discord_id, "invoice_id": invoice_id},
-            {"$set": {"active": False}},
-        )
         return "The invoice has been cancelled."
 
     except Exception as e:
