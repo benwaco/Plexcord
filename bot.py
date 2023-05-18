@@ -731,7 +731,8 @@ async def subscriptionCheckerLoop():
     print("Running subscription checker loop...")
     expired_removed = 0
     await contactAdmin("Starting subscription checker loop...")
-    async for user in db_plex["plex"].find():
+    users = await db_plex["plex"].find().to_list(length=None)
+    async for user in users:
         expired_check = await isExpired(user["expiration_date"])
         expired = expired_check[0]
         remaining = expired_check[1]
