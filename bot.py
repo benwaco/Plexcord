@@ -592,15 +592,21 @@ async def send_plan_menu(ctx):
             value=(
                 f"Price: ${plan['price']}\n"
                 f"Concurrent Streams: {plan['concurrent_streams']}\n"
-                f"Downloads Enabled: {'Yes' if plan['downloads_enabled'] else 'No'}\n"
+                f"Downloads Enabled: {'Yes' if plan['downloads_enabled'] else 'No'}*\n"
                 f"4K Enabled: {'Yes' if plan['4k_enabled'] else 'No'}\n"
             ),
-            inline=False,
+            inline=True,
         )
 
     embed.add_field(
         name="One Time Payment Plan",
         value="Your card details are not saved, you will need to manually add more time to avoid being removed.",
+        inline=False,
+    )
+
+    embed.add_field(
+        name="",
+        value="*On Plex accounts created after August 1 2020 a Plex Pass is required to utilize downloads. See: https://support.plex.tv/articles/downloads-sync-faq/ for more information.",
         inline=False,
     )
 
