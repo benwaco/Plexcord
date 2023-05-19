@@ -5,7 +5,7 @@ import sys
 
 import discord
 import dotenv
-import motor.motor_asyncio
+import pymongo
 import yaml
 from async_stripe import stripe
 from discord.ext import tasks
@@ -79,13 +79,12 @@ for section in plex.library.sections():
 
 
 # Setup MongoDB with motor
-client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URL)
+client = pymongo.MongoClient(MONGODB_URL)
 db_plex = client["pycord"]
 db_payments = client["pycord"]
 db_subscriptions = client["pycord"]
+cursor = db_plex["plex"].find()
 
-
-users = db_plex["plex"].find().to_list(length=None)
 
 def add_to_plex(email, discord_id, plan_name):
     try:
@@ -109,9 +108,18 @@ def add_to_plex(email, discord_id, plan_name):
         return True
     except Exception as e:
         return e
-
-for user in users:
+succ = 0
+fail = 0
+for user in cursor:
     discord_id = user["discord_id"]
     email = user["email"]
     plan_name = user["plan_name"]
-    print(add_to_plex(email, discord_id, plan_name), "for", email, "with plan", plan_name, "and discord id", discord_id)
+    try:
+        print(add_to_plex(email, discord_id, plan_name), "for", email, "with plan", plan_name, "and discord id", discord_id)
+        succ += 1
+    except Exception as e:
+        print(e)
+        fail += 1
+
+print("Successes:", succ)
+print("Failures:", fail)
