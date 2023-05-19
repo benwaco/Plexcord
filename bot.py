@@ -386,8 +386,13 @@ async def send_plans_embed(ctx):
                 f"Downloads Enabled: {'Yes' if plan['downloads_enabled'] else 'No'}\n"
                 f"4K Enabled: {'Yes' if plan['4k_enabled'] else 'No'}\n"
             ),
-            inline=False,
+            inline=True,
         )
+    embed.add_field(
+        name="",
+        value="*Plex accounts created after August 1, 2022 require a Plex Pass to utilize downloads. For more information, see https://support.plex.tv/articles/downloads-sync-faq/.",
+        inline=False,
+    )
     await ctx.send(embed=embed)
 
 
@@ -606,7 +611,7 @@ async def send_plan_menu(ctx):
 
     embed.add_field(
         name="",
-        value="*On Plex accounts created after August 1 2020 a Plex Pass is required to utilize downloads. See: https://support.plex.tv/articles/downloads-sync-faq/ for more information.",
+        value="*Plex accounts created after August 1, 2022 require a Plex Pass to utilize downloads. For more information, see https://support.plex.tv/articles/downloads-sync-faq/.",
         inline=False,
     )
 
