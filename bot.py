@@ -383,7 +383,7 @@ async def send_plans_embed(ctx):
             value=(
                 f"Price: ${plan['price']}\n"
                 f"Concurrent Streams: {plan['concurrent_streams']}\n"
-                f"Downloads Enabled: {'Yes' if plan['downloads_enabled'] else 'No'}\n"
+                f"Downloads Enabled: {'Yes' if plan['downloads_enabled'] else 'No'}*\n"
                 f"4K Enabled: {'Yes' if plan['4k_enabled'] else 'No'}\n"
             ),
             inline=True,
