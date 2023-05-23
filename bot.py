@@ -622,6 +622,9 @@ async def send_plan_menu(ctx):
         ephemeral=True,
     )
 
+@bot.slash_command(guild_ids=[GUILD_ID])
+async def ping(ctx):
+    await ctx.respond(f"Pong! ({bot.latency*1000}ms)", ephemeral=True)
 
 async def cancel_payment(discord_id):
     try:
