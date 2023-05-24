@@ -2,6 +2,7 @@ import datetime
 import math
 import os
 import sys
+import re
 
 import discord
 import dotenv
@@ -10,7 +11,6 @@ import yaml
 from async_stripe import stripe
 from discord.ext import tasks
 from plexapi.myplex import MyPlexAccount
-from plexapi.server import PlexServer
 
 # Load Environment Variables
 dotenv.load_dotenv()
@@ -28,6 +28,7 @@ DISCORD_ADMIN_ID = os.getenv("DISCORD_ADMIN_ID")
 STATS = os.getenv("STATS")
 STATS_CHANNEL_ID = os.getenv("STATS_CHANNEL_ID")
 
+VALID_SUBTITLE_EXTENSIONS = [".srt", ".smi", ".ssa", ".ass", ".vtt"]
 
 def load_plans():
     with open("plans.yml", "r") as file:
@@ -356,16 +357,33 @@ async def upload_subtitles(
     media_url: discord.Option(discord.SlashCommandOptionType.string),
     subtitle_file: discord.Option(discord.SlashCommandOptionType.attachment),
 ):
-    author_roles = []
-    for r in ctx.author.roles:
-        author_roles.append(r.id)
-
-    if int(DISCORD_ADMIN_ROLE_ID) not in author_roles:
+    if not any(subtitle_file.filename.lower().endswith(ext) for ext in VALID_SUBTITLE_EXTENSIONS):
         await ctx.respond(
-            "You do not have permission to use this command.", ephemeral=True
+            f"Invalid subtitle file type. The file must be one of the following types: {', '.join(VALID_SUBTITLE_EXTENSIONS)}",
+            ephemeral=True,
         )
         return
-    await ctx.respond("Uploading subtitles...", ephemeral=True)
+    pattern = r"metadata%2F(\d+)&context"
+    match = re.search(pattern, media_url)
+    if not match:
+        await ctx.respond(
+            "Invalid media URL, please copy the url on the media page.",
+            ephemeral=True,
+        )
+        return
+    media_id = match.group(1)
+    media = plex.fetchItem(int(media_id))
+
+    # Check if the directory exists, and if not, create it.
+    directory = "./subtitles/"
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    await subtitle_file.save(f"{directory}{subtitle_file.filename}")
+    subtitle_path = f"{directory}{subtitle_file.filename}"
+    media.uploadSubtitles(subtitle_path)
+    return await ctx.respond(f"Uploaded subtitle {subtitle_file.filename}.")
+
 
 
 @bot.slash_command(guild_ids=[GUILD_ID])
@@ -624,7 +642,8 @@ async def send_plan_menu(ctx):
 
 @bot.slash_command(guild_ids=[GUILD_ID])
 async def ping(ctx):
-    await ctx.respond(f"Pong! ({bot.latency*1000}ms)", ephemeral=True)
+    # round latency to 2 decimal places
+    await ctx.respond(f"Pong! ({round(bot.latency*1000, 2)}ms)", ephemeral=True)
 
 async def cancel_payment(discord_id):
     try:
