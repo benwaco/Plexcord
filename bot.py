@@ -362,6 +362,7 @@ async def upload_subtitles(
             f"Invalid subtitle file type. The file must be one of the following types: {', '.join(VALID_SUBTITLE_EXTENSIONS)}.",
             ephemeral=True,
         )
+        await contactAdmin(f'{ctx.author.mention} tried to upload a subtitle file with an invalid extension: {subtitle_file.filename}.')
         return
     pattern = r"metadata%2F(\d+)&context"
     match = re.search(pattern, media_url)
