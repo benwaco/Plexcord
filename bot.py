@@ -351,11 +351,11 @@ class ManageSubscriptionMenu(discord.ui.View):
 # make a list of role ids from plans yml
 
 
-@bot.slash_command(guild_ids=[GUILD_ID])
+@bot.slash_command(description="Upload a subtitle to Plex", guild_ids=[GUILD_ID])
 async def upload_subtitles(
     ctx,
-    media_url: discord.Option(discord.SlashCommandOptionType.string),
-    subtitle_file: discord.Option(discord.SlashCommandOptionType.attachment),
+    media_url: discord.Option(discord.SlashCommandOptionType.string, description="Copy the URL from Plex Web."),
+    subtitle_file: discord.Option(discord.SlashCommandOptionType.attachment, description=f"Upload a subtitle file with one of the following extensions: {', '.join(VALID_SUBTITLE_EXTENSIONS)}"),
 ):
     if not any(subtitle_file.filename.lower().endswith(ext) for ext in VALID_SUBTITLE_EXTENSIONS):
         await ctx.respond(
