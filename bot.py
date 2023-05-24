@@ -359,7 +359,7 @@ async def upload_subtitles(
 ):
     if not any(subtitle_file.filename.lower().endswith(ext) for ext in VALID_SUBTITLE_EXTENSIONS):
         await ctx.respond(
-            f"Invalid subtitle file type. The file must be one of the following types: {', '.join(VALID_SUBTITLE_EXTENSIONS)}",
+            f"Invalid subtitle file type. The file must be one of the following types: {', '.join(VALID_SUBTITLE_EXTENSIONS)}.",
             ephemeral=True,
         )
         return
