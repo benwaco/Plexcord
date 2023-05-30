@@ -453,12 +453,12 @@ class PlanView(
             value=(
                 f"Price: ${plans[0]['price']}\n"
                 f"Concurrent Streams: {plans[0]['concurrent_streams']}\n"
-                f"Downloads Enabled: {'Yes' if plans[0]['downloads_enabled'] else 'No'}\n"
-                f"4K Enabled: {'Yes*' if plans[0]['4k_enabled'] else 'No'}\n"
+                f"Downloads Enabled: {'Yes*' if plans[0]['downloads_enabled'] else 'No'}\n"
+                f"4K Enabled: {'Yes' if plans[0]['4k_enabled'] else 'No'}\n"
             ),
             inline=False,
         )
-        if plans[0]["4k_enabled"]:
+        if plans[0]["downloads_enabled"]:
             embed.add_field(
                 name="",
                 value="*Plex accounts created after August 1, 2022 require a Plex Pass to utilize downloads. For more information, see https://support.plex.tv/articles/downloads-sync-faq/.",
