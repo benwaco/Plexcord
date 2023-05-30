@@ -1,8 +1,8 @@
 import datetime
 import math
 import os
-import sys
 import re
+import sys
 
 import discord
 import dotenv
@@ -359,7 +359,7 @@ async def upload_subtitles(
         discord.SlashCommandOptionType.string, description="Copy the URL from Plex Web."
     ),
     subtitle_file: discord.Option(
-        discord.a,
+        discord.SlashCommandOptionType.attachment,
         description=f"Upload a subtitle file with one of the following extensions: {', '.join(VALID_SUBTITLE_EXTENSIONS)}",
     ),
 ):
