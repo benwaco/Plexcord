@@ -30,6 +30,7 @@ STATS_CHANNEL_ID = os.getenv("STATS_CHANNEL_ID")
 
 VALID_SUBTITLE_EXTENSIONS = [".srt", ".smi", ".ssa", ".ass", ".vtt"]
 
+
 def load_plans():
     with open("plans.yml", "r") as file:
         plans_data = yaml.safe_load(file)
@@ -354,15 +355,25 @@ class ManageSubscriptionMenu(discord.ui.View):
 @bot.slash_command(description="Upload a subtitle to Plex", guild_ids=[GUILD_ID])
 async def upload_subtitles(
     ctx,
-    media_url: discord.Option(discord.SlashCommandOptionType.string, description="Copy the URL from Plex Web."),
-    subtitle_file: discord.Option(discord.SlashCommandOptionType.attachment, description=f"Upload a subtitle file with one of the following extensions: {', '.join(VALID_SUBTITLE_EXTENSIONS)}"),
+    media_url: discord.Option(
+        discord.SlashCommandOptionType.string, description="Copy the URL from Plex Web."
+    ),
+    subtitle_file: discord.Option(
+        discord.a,
+        description=f"Upload a subtitle file with one of the following extensions: {', '.join(VALID_SUBTITLE_EXTENSIONS)}",
+    ),
 ):
-    if not any(subtitle_file.filename.lower().endswith(ext) for ext in VALID_SUBTITLE_EXTENSIONS):
+    if not any(
+        subtitle_file.filename.lower().endswith(ext)
+        for ext in VALID_SUBTITLE_EXTENSIONS
+    ):
         await ctx.respond(
             f"Invalid subtitle file type. The file must be one of the following types: {', '.join(VALID_SUBTITLE_EXTENSIONS)}.",
             ephemeral=True,
         )
-        await contactAdmin(f'{ctx.author.mention} tried to upload a subtitle file with an invalid extension: {subtitle_file.filename}.')
+        await contactAdmin(
+            f"{ctx.author.mention} tried to upload a subtitle file with an invalid extension: {subtitle_file.filename}."
+        )
         return
     pattern = r"metadata%2F(\d+)&context"
     match = re.search(pattern, media_url)
@@ -384,7 +395,6 @@ async def upload_subtitles(
     subtitle_path = f"{directory}{subtitle_file.filename}"
     media.uploadSubtitles(subtitle_path)
     return await ctx.respond(f"Uploaded subtitle {subtitle_file.filename}.")
-
 
 
 @bot.slash_command(guild_ids=[GUILD_ID])
@@ -444,10 +454,16 @@ class PlanView(
                 f"Price: ${plans[0]['price']}\n"
                 f"Concurrent Streams: {plans[0]['concurrent_streams']}\n"
                 f"Downloads Enabled: {'Yes' if plans[0]['downloads_enabled'] else 'No'}\n"
-                f"4K Enabled: {'Yes' if plans[0]['4k_enabled'] else 'No'}\n"
+                f"4K Enabled: {'Yes*' if plans[0]['4k_enabled'] else 'No'}\n"
             ),
             inline=False,
         )
+        if plans[0]["4k_enabled"]:
+            embed.add_field(
+                name="",
+                value="*Plex accounts created after August 1, 2022 require a Plex Pass to utilize downloads. For more information, see https://support.plex.tv/articles/downloads-sync-faq/.",
+                inline=False,
+            )
         await interaction.response.send_message(
             view=PaymentOptionsView(plan=plans[0]), ephemeral=True, embed=embed
         )
@@ -641,10 +657,12 @@ async def send_plan_menu(ctx):
         ephemeral=True,
     )
 
+
 @bot.slash_command(guild_ids=[GUILD_ID])
 async def ping(ctx):
     # round latency to 2 decimal places
     await ctx.respond(f"Pong! ({round(bot.latency*1000, 2)}ms)", ephemeral=True)
+
 
 async def cancel_payment(discord_id):
     try:
