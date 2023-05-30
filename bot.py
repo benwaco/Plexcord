@@ -481,11 +481,17 @@ class PlanView(
             value=(
                 f"Price: ${plans[1]['price']}\n"
                 f"Concurrent Streams: {plans[1]['concurrent_streams']}\n"
-                f"Downloads Enabled: {'Yes' if plans[1]['downloads_enabled'] else 'No'}\n"
+                f"Downloads Enabled: {'Yes*' if plans[1]['downloads_enabled'] else 'No'}\n"
                 f"4K Enabled: {'Yes' if plans[1]['4k_enabled'] else 'No'}\n"
             ),
             inline=False,
         )
+        if plans[1]["downloads_enabled"]:
+            embed.add_field(
+                name="",
+                value="*Plex accounts created after August 1, 2022 require a Plex Pass to utilize downloads. For more information, see https://support.plex.tv/articles/downloads-sync-faq/.",
+                inline=False,
+            )
         await interaction.response.send_message(
             embed=embed, view=PaymentOptionsView(plan=plans[1]), ephemeral=True
         )
@@ -503,11 +509,17 @@ class PlanView(
             value=(
                 f"Price: ${plans[2]['price']}\n"
                 f"Concurrent Streams: {plans[2]['concurrent_streams']}\n"
-                f"Downloads Enabled: {'Yes' if plans[2]['downloads_enabled'] else 'No'}\n"
+                f"Downloads Enabled: {'Yes*' if plans[2]['downloads_enabled'] else 'No'}\n"
                 f"4K Enabled: {'Yes' if plans[2]['4k_enabled'] else 'No'}\n"
             ),
             inline=False,
         )
+        if plans[2]["downloads_enabled"]:
+            embed.add_field(
+                name="",
+                value="*Plex accounts created after August 1, 2022 require a Plex Pass to utilize downloads. For more information, see https://support.plex.tv/articles/downloads-sync-faq/.",
+                inline=False,
+            )
         await interaction.response.send_message(
             embed=embed, view=PaymentOptionsView(plan=plans[2]), ephemeral=True
         )
